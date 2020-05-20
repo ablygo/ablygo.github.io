@@ -266,28 +266,47 @@ Essentially, between `''` each line needs to start with a `|`, and the string co
 
 #### Interpolated lines
 
-Then if we need to interpolate a line we can, by using a custom character for that line (with caveats towards unicode
-normalization, I don't know if only a small subset of characters should be allowed). The fact that interpolated values would
-also need to be bracketed also adds security, as regardless of their choice of escape characters every escaped value needs to
-be bracketed the same way.
+An example from https://rahul-thakoor.github.io/rust-raw-string-literals/, taken from the toml crate
 
-Furthermore, the fact that each line can have a different escape character lets you use whatever escape character you know
+```
+''
+| global_string = "test"
+| global_integer = 5
+| [server]
+| ip = "127.0.0.1"
+| port = 80
+| [[peers]]
+| ip = "127.0.0.1"
+| port = 8080
+| [[peers]]
+| ip = "127.0.0.1"
+''
+```
+
+Unlike other raw string syntaxes, this allows leading non-semantic whitespace (before the pipe) and leading semantic whitespace (starting one character after the pipe). It also allows the end-of-string token in the string with no limitations: a line containing text must start with `|` as the first non-whitespace character, while the line ending the string must start with `''` as the first non-whitespace character. Likewise, a line starting with `--` is a comment in the host language, and
+so is not part of the string.
+
+If we need to interpolate a line we can, by using a custom character for that line (with caveats towards unicode
+normalization, I don't know if only a small subset of characters should be allowed). As an example
+
+```
+''
+☺ hello ☺("world")
+''
+```
+
+The fact that interpolated values would
+also need to be bracketed also adds security, as regardless of their choice of escape characters every escaped value needs to
+be bracketed the same way, which makes it stand out if someone is trying to sneak an interpolated value into a string.
+
+Technically we could even use `'` or `-` as escape characters, since a line needs to contain one of those and then a space to be text, while it needs to contain two of those in a row to be interpreted differently. However I'm not sure that that's a good idea.
+
+The fact that each line can have a different escape character lets you use whatever escape character you know
 won't collide with your raw string, without needing to audit the entire string (which could be multiple screens long), and
 also keeps that information local. If you can use the same one throughout do so, but if that will cause collisions switch it
 up to be more legible.
 
-Likewise comments could be added, like
-
-```
-''
-| first line
--- comment
-| second line
-''
-```
-
-Since the line starts with `--` rather than `{char} ` or `|` we know it must be a comment unambiguously, and so we could use
-this to comment code in languages that don't have comment syntax. One disadvantage is user's might think the empty string is
+One disadvantage is user's might think the empty string is
 
 ```
 ''
@@ -302,9 +321,9 @@ rather than
 ''
 ```
 
-though we can give an error message for that, as it is not valid syntax. Another disadvantage is it always takes 2 more lines
+though we can give an error message for that, as it is not valid syntax. I don't know why anyone would write an empty string like that regardless. Another disadvantage is it always takes 2 more lines
 than there are in the string itself, which is a little bit awkward for single line raw strings. However, while it is worse
-in terms of LOC, I find it a lot more legible than rust's syntax, which requires potentially counting `#` characters to tell when the string ends (but is still my second favorite syntax).
+in terms of LOC, I find it a lot more legible than rust's syntax, which requires potentially counting `#` characters to tell which `#`s are literal and which are part of the host syntax.
 
 The fact that start of line is marked with `|` rather than the first non-whitespace character also allows us to have leading
 whitespace, and no need to strip leading whitespace for alignment (whitespace prior to the `|` gets ignored. Without escape
