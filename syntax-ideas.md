@@ -116,31 +116,52 @@ So I already don't know whether the semantics should be unified, and unifying th
 and !-blocks, so for the moment I'm keeping them separate. If the former question was answered I might consider unifying the
 syntax, but simply choosing something different than curly brackets, but there's still the issue of puns. I could use a sigil?
 
-## !-idioms
+## !-expressions
 
-I want to be able to write `{putLine !getLine}` as I mentioned above, but even ignoring the issue of clashes with other
-syntaxes it introduces a few problems. I intend it to behave like do-blocks, so semicolons and binds would also work. Still
-what if someone writes `if x then putLine !getLine else pure ()`. One solution to this problem is to have ad-hoc rules where
-the scope behaves differently, so it wouldn't lift over `if`, a binding (whether in a lambda or case) or any value declaration,
-though I frequently see objections to this approach, as it is very ad-hoc, and I agree. My solution is to have the same rules,
-but instead generate a warning, showing the user the desugaring, and presenting the option of disabling the warning locally for
-that declaration if they wanted to. So they could write
+I want to be able to write code like
 
 ```haskell
-#[allow_hoist]
-f x = do 
-    if x then putLine !getLine else pure ()
+do
+    ...
+    putStrLn !getLine
+    ...
 ```
-Which would make it desugar according to that rule, rather than doing so automatically. (When I say desugar according to that
-rule it would still use the naive algorithm of hoist to the nearest line in the do/!-block, not hoist to the nearest line or
-binder or equals or then/else. I would not want the meaning to change depending on whether the warning is disabled, only whether
-the warning is ignored).
+
+which would have the meaning of
+
+```haskell
+do
+    ...
+    tmp <- getLine
+    putStrLn tmp
+    ...
+```
+
+Anything preceded with a `!` sigil gets lifted to occur preceding the statement where it was used. I also intend to allow
+explicit layout in any expression context, not just following a `do`, so `{ putStrLn !getLine }` would show the exact boundary
+of where the variable will be hoisted.
+
+Whenever I see this syntax suggested, there is frequently the objection to how to parse a line like `if b then putStrLn !getLine else pure ()`. The rule would cause the `!getLine` to be hoisted over the `if`, and happen every time, not just
+conditionally. One solution to this problem is to have ad-hoc rules where the scope behaves differently, so it wouldn't
+hoist over `if`, a lambda, a case branch, or an assignment (e.g. `foo = !bar`).
+
+Where it fails is these rules are seen as too ad-hoc, and I agree. My solution is to have the same rules, but rather than
+changing the behaviour of the desugaring, simply result in a warning showing how the code will desugar, why that might not
+be what's intended, and how to change it if it was unintentional. If they did intend to use the sugar that way, they could 
+simply turn off the warning, on a module or declaration basis. Something like
+
+```haskell
+#[-Wno-warn-hoist]
+foo b = do
+    if b then putStrLn !getLine else pure ()
+```
 
 I think the strength of this approach
 isn't just that it allows people to use it how they like, but specifically because every new programmar is likely to make this
 mistake, and then see an error messaging seeing how it might not be what they want. This gives them the opportunity to use
 their knowledge from other languages to adapt to monadic code more quickly, but also to learn how it differs more quickly as
-well.
+well. I think a specific message for code like `performIO :: IO a -> a ; performIO m = !m` probably would also be a good idea,
+as someone is almost assuredly going to write it.
 
 I think an issue with using `=<<` or do-blocks explicitly is that the extra noise you introduce to do something as simple as
 `f !a b !c d` makes understanding a simple concept much more difficult, and also makes intent harder to discern even when you
@@ -148,7 +169,7 @@ do discern the idiom (if we are binding variable names explicitly are they being
 message that's easy to encounter they get the best of both worlds: legibility, and a learning moment when the compiler explains
 where their intuition breaks.
 
-One question is abstraction. If I define my own `ifThenElse` function will I lose the warning. My solution to that is to allow
+One question is abstraction. If I define my own `ifThenElse` function will I lose the warning? My solution to that is to allow
 an annotation (subject to bike shedding)
 ```haskell
 #[dontHoist(t,f)]
@@ -161,28 +182,27 @@ flow possible. Rather it's just to ensure that new users are likely to learn the
 quickly, so that they develop an intuition for how it actually desugars, at which point the warning isn't really necessary
 except as a double safety check.
 
+To reiterate, we don't want to have a perfect abstraction for when a hoist makes sense, we simply want to ensure new users
+encounter a few tricky cases early, as a teaching moment, so they can learn the distinction between effectful and
+non-effectful code early on.
+
 One other note, it would be possible syntactically to write `{\x => !x}`, as the inner `x` gets bound before it actually
 is passed into the function. You could interpret it as 
 
 ```haskell
 do
-    y <- x
-    \x => y
+    x' <- x
+    \x => x'
 ```
 
 While that's the only meaning I can give to such a statement, I feel like even with the "don't hoist over bindings" warning
-disabled it's better to reject that with a specific error message to that case. Otherwise, if the user wrote `{\x => !y}`,
-that would be allowed (modulo the warning message) as
-
-```haskell
-do
-    y' <- y
-    \x => y'
-```
+disabled it's better to always reject that with a specific error message to that case. I feel like the more likely
+interpretation is to consider shadowing prior to hoisting, and so hard rejecting that with an error, rather than soft
+rejecting it with a warning.
 
 I frequently have also wanted syntax for idiom brackets, though we can technically do that like `{pure (f !x !y)}`. However,
 I think that extra noise detracts from the important information, so I'm proposing doing the same with `{{f !x !y}}`. Since
-`{x}` => `x`, there isn't any unique meaning to ascribe to nesting extra parentheses, so using it to mean something different
+`{x}` reduces to `x` (modulo hoisting now), there isn't any unique meaning to ascribe to nesting extra parentheses, so using it to mean something different
 seems acceptable to me. Thus we could write `{{x}}` for `pure x`, `{{f !x}}` for `fmap f x`, and so on.
 
 Another advantage of
@@ -190,8 +210,8 @@ having separate syntax for pure-terminated blocks is we no longer need the hack 
 `pure (...)` and `pure $ ...`, as the pure is implicit. Though possibly it would still be necessary if someone wrote out a
 do-block explicitly; I'm not sure if that should be read intentionally or not.
 
-I'm aware that idiom brackets are a bit different (not requiring the bangs), but I feel like explicit is better than implicit
-in this case, as it allows a mix of effectful and pure arguments nicely, and intuition about the `{putLine !getLine}`
+I'm aware that idiom brackets are a bit different (not requiring the bangs), but I feel like syntactic consistency is more
+important, and it also allows a mix of effectful and pure arguments nicely, and intuition about the `{putLine !getLine}`
 transfers to the pure-terminated case.
 
 One last point behind this syntax is it's not intended to be used to compress as much information into a single line as
@@ -215,18 +235,18 @@ isn't the same thing as this being a good idea.
 
 2. What about `{x : IO Int}`? I've seen desire for type signatures above the binder in do-blocks, which already would be
 ambiguous, as `:` is also allowed in expressions. However, Idris doesn't allow `:` in expressions, so that's one solution.
-It would also remove the ambiguity for the same rason as point 1: a do-block with a type variable would need to have a
+It would also remove the ambiguity for the same reason as point 1: a do-block with a type variable would need to have a
 following binder, like:
 
 ```haskell
 do
     x : IO Int
-    x <- pure 2
+    x <- pure (pure 2)
     ...
 ```
 
 So `{x : IO Int}` has to be a record, since a type signature in a !-block has to be followed by a semicolon, then the bound
-variable. However, that doesn't mean it's unambiguous to the coder.
+variable. However, that doesn't mean it's unambiguous to the coder. Though I kind of like Idris's solution, given its audience I still feel like it might be a bad one: Haskell coder's are likely to expect different behaviour, and I think a strong justification is needed to break from that; stronger than "I can overload the meaning of this and still have it be *technically* unambiguous". I'm not sure if there's something specific to the dependent typed setting that made `:` not allowed in Idris. Maybe just because they have `the : (a : Type) -> a -> a`.
 
 Another solution (if still committing to the `:` as type declaration in do-block idea), is to simply disallow the same in
 !-blocks, similar to the fact that guards can't be used in lambdas. The syntax is intended for code that is small; if someone
