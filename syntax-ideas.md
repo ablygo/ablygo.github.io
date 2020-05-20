@@ -251,22 +251,65 @@ Another solution is to need a comma following records, so for the record we woul
 My big concern is there are lots of ways to interpret brackets here, and I want to avoid needing ad-hoc rules, so I need to
 make a firm decision at some point.
 
+## Raw string syntax
 
+Unlike all the other choices, I love everything about this syntax, and feel like it has basically no major problems I can
+see. The proposed syntax is
 
+```
+''
+| first line
+☺ second ☺("line")
+''
+```
+Essentially, between `''` each line needs to start with a `|`, and the string contents start 1 space after the `|`. The advantage of this is you don't need escapes to type characters, including the end of string characters. `''` can be typed literally inside a string, because the line started with `|`, and so can't be ended until the next line. It basically acts like a language box, but with the requirement that each line needs to start with a `|`
 
+#### Interpolated lines
 
+Then if we need to interpolate a line we can, by using a custom character for that line (with caveats towards unicode
+normalization, I don't know if only a small subset of characters should be allowed). The fact that interpolated values would
+also need to be bracketed also adds security, as regardless of their choice of escape characters every escaped value needs to
+be bracketed the same way.
 
+Furthermore, the fact that each line can have a different escape character lets you use whatever escape character you know
+won't collide with your raw string, without needing to audit the entire string (which could be multiple screens long), and
+also keeps that information local. If you can use the same one throughout do so, but if that will cause collisions switch it
+up to be more legible.
 
+Likewise comments could be added, like
 
+```
+''
+| first line
+-- comment
+| second line
+''
+```
 
+Since the line starts with `--` rather than `{char} ` or `|` we know it must be a comment unambiguously, and so we could use
+this to comment code in languages that don't have comment syntax. One disadvantage is user's might think the empty string is
 
+```
+''
+''
+```
 
+rather than
 
+```
+''
+|
+''
+```
 
+though we can give an error message for that, as it is not valid syntax. Another disadvantage is it always takes 2 more lines
+than there are in the string itself, which is a little bit awkward for single line raw strings. However, while it is worse
+in terms of LOC, I find it a lot more legible than rust's syntax, which requires potentially counting `#` characters to tell when the string ends (but is still my second favorite syntax).
 
-
-
-
+The fact that start of line is marked with `|` rather than the first non-whitespace character also allows us to have leading
+whitespace, and no need to strip leading whitespace for alignment (whitespace prior to the `|` gets ignored. Without escape
+characters it is in fact context free. Though not perfect, I also find the need to begin each line with `|` less awkward than
+I thought it would.
 
 
 
