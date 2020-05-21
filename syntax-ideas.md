@@ -7,8 +7,7 @@ tuples being conditional on having a single type that unifies both concepts).
 ### Tuple syntax
 
 I'm considering using `[a,b]` for tuple and list syntax, though I worry about type inference. I do need a 1-tuple, and `(a,)`
-would cause me to lose tuple sections. Granted, I don't love sections. But I also would like a separate syntax for tuple types,
-and even if I allow `(a,)` for a 1-tuple type list syntax for expressions 
+would cause me to lose tuple sections. Granted, I don't love sections. But I also would like a separate syntax for tuple types, and even if I allow `(a,)` for a 1-tuple type list syntax for values I could use the list syntax.
 
 Idris does use round brackets for both type and value types, so that still is an option, but I also worry about ambiguity.
 Though I could also use `'(a, b)` for types and `(a, b)` for values.
@@ -45,7 +44,7 @@ would be confusing. I would rather the value level construction use a different 
 I could use `some (a,) : ∃a. '(a,)`? I dunno. I don't like it (also I don't actually plan on requiring unicode). Or I could do
 `(a,) : ∃a. '(a,)`, though I worry that having every tuple.
 
-Though I'm not sure if the fact that the sugar looks like a pair, but the desugared form is actually a 4-tuple, is confusing.
+Though I'm not sure if the fact that the sugar looks like a pair, but the desugared form is actually a 4-tuple, is confusing. Another option is to separate existentials from dependent tuples, and thus remove the multiplicity issue. Thus the `Exists'` example would have `_Exists' : Prism (Exists c) (exists a. c a => (a,))`. This would allow `exists` to be used without the issues with 1-tuples, but with an extra indirection when there are constraints and the thing that exists is contained in a tuple (as I feel all prisms should be, so that I can talk about a prism's arity (rather than its arity always being 1).
 
 One thing I dislike about the unsugared syntax is parsing the infix operators. `(a : Int, b : F a, G a b)` isn't too hard to
 understand, given that the rules for pairs are pretty well established, but I find it hard to parse at a glance. I would really
@@ -56,12 +55,14 @@ dependent tuple/sum: (a : Int) ** (b : F a) ** G a b
 dependent product:   (a : Int) -> (b : F a) -> G a b
 ```
 
-However, unlike `->` being right associative, `**` being sugar for dependent tuples is deeply magical. We wouldn't actually be
+However, unlike `->` being right associative, `**` being sugar for dependent tuples is magical; it's more like a comma that
+doesn't need enclosing parentheses (and would bind more tightly than `->`). We wouldn't actually be
 parsing it as a series of pairs, but as a single flat pair. Not only that, but we would still need syntax for 1-tuples and
-0-tuples. So while it parses nicer at a glance, those reasons make me *really* dislike the idea.
+0-tuples. So while it parses nicer at a glance, those reasons make me *really* dislike the idea. But for readability, I
+*really* like the idea. What do?
 
 To summarize, if I were to do all of that I would have `(a : Type, b : F a, G a b)` being a flat dependent pair, `exists a.
-Show a => (a, a)` for a tuple with some erased/constraint fields`, `∃(a,a)` for the value,  and
+Show a => (a, a)` for a tuple with some erased/constraint fields, `∃(a,a)` for the value,  and
 `(a : Int) ** (b : F a) ** G a b`
 for sugar for the dependent pair again. That seems like possibly more syntax than I'm happy with for all slightly different
 takes on the same concept.
@@ -350,6 +351,63 @@ whitespace, and no need to strip leading whitespace for alignment (whitespace pr
 characters it is in fact context free. Though not perfect, I also find the need to begin each line with `|` less awkward than
 I thought it would.
 
+## !-idioms
 
+Rather than focussing too much on the exact way to disambiguate the block expression from record syntax, I want to consider what I want `!` to be capable of, regardless of whether it is in a `do` or block expression. The obvious thing is just to desugar it to `pure`/`fmap`/`<*>`/`>>=`/`mfix` as appropriate (not sure about that last one), however there are more possibilities to what it could do. I'm considering things like rust's `?` operator. We can of course implement it in terms of `!`, but only if our monad's are consistent.
 
+In rust they get to essentially treat it as if the only monad they ever use is `Either`, and get implicit conversions between `IO (Either e a)`, `Either e a`, and `ExceptT e IO a`, since without actually having monads all three types are the same. But in Haskell we need to convert between them, and needing to clutter our code with newtype constructors will make the core logic interspersed with wrappers/unwrappers that aren't related to our problem domain.
+
+But if we have a function `bindEither : From e e' => Either e a -> (a -> m b) -> m (Either e' a)` and then have some annotation `#[hoist("?" = bindEither)]`, then we can use write code like:
+
+```haskell
+readFile : FilePath -> IO (Either IOError Handle)
+readFile = notImplemented
+
+#[decl-hoist("?" = bindEither)]
+exmample = do
+    x <- ?(readFile !getLine)
+    ...
+```
+
+Essentially, sigils act as dereference operators. Probably the obvious criticism to this idea is Haskell has operator soup enough without user-defined sigils; my strongest counter to that is that by requiring a declaration in each module it gets used its clear to the reader what it means (they never need to google what does this symbol mean, as it can't be imported unqualified). Plus there's no question of how to parse it, as all operators get hoisted exactly the same way. Fixity is irrelevant.
+
+While this would be a pretty ambitious syntax, I don't think learning it would really be any harder than learning the rest of Haskell, and I think it could make some of it more easy, again, by punning simple concepts on their imperative counterparts.
+
+You could even dereference lenses in reader/state monads with this formulation, as well as mutable references. However, mutable references pose another complication. Suppose we have some mutable reference containing a pure value, and we want to use a lens into that pure value, to access another mutable reference, and so on. In an imperative language that looks like `a.b.c.d.e`, but what does it look like in ours? Suppose
+
+```haskell
+a : IORef Struct1
+b : Lens' Struct1 (IORef Struct2)
+c : Lens' Struct2 (IORef Struct3)
+d : Lens' Struct3 Struct4
+e : Lens' Struct4 Struct5
+
+struct5 : IO Struct5
+struct5 = do
+    *(*(*a ^. b) ^. c) ^. d . e
+```
+
+This is an improvement over the equivalent code with a mixture of `readIORef` and `^.`, but we kind of need to alternate looking at the front and back, for what logically is trying to communicate something fairly sequential. It also kind of looks like C++ code without the `->` operator, which points to what we need to end up having: a way to use a sigil like an operator. Which might be going further into operator soup, but suppose we write it like `((a* ^. b)* ^. c)* ^. d . e`. Is this better? Maybe, I still can't say it's worth it just yet. I could just do it with functions for this special case, and thus need no special sugar. Like `a & readIORef <&> view b >>= readIORef <&> view c >>= readIORef <&> view (d . e)`. While this isn't too terribly difficult to read once you know the idiom (each function associates the same way, so you can just read it sequentially), I don't feel like it exactly justifies "no you don't need sugar for this".
+
+I like the sigil idea for pure computations, but I still think it falls short of the second part of https://stackoverflow.com/questions/6622524/why-is-haskell-sometimes-referred-to-as-best-imperative-language, and without a more thought can't say I would recommend it for actual mutable variables and lenses mixed together.
+
+Question? Can we abstract the pattern though. Just to pun on C++ syntax for the moment, we'll ignore that this particular operator obviously wouldn't work for Haskell, but let's try:
+
+```haskell
+(->) : IORef s -> Lens' s a -> IO a
+struct5 = a -> b -> c -> d . e
+```
+Note we haven't actually needed to abstract over the hoisting logic. But what if we want to set a variable? We would actually need to set the last mutable variable in the chain (`c`). Can we abstract over that logic:
+
+```haskell
+modifyIORef (a -> b -> c) (over (d . e) (+1)`
+-- infix modifyIORef with appropriate fixity
+a -> b -> c %= over (d . e) (+ 1)
+-- mixfix modifyIORefWithLens? I don't like this
+a -> b -> c ^-> d . e += 1
+```
+
+Still not quite there yet. Ignoring the performance issues of possible double reads if you dereference over the same variables in both the LHS and RHS, I'd like to be able to do `x.y.z = a.b.c` for any mix of mutable reference and pure references.
+
+In conclusion, I like sigils for hoisting, as I don't think the idiom is difficult to understand, even if the sigil can be customized. However, I haven't thought of a way to push it further than rust's `?` operator. Proper functions seem a better abstraction for C++'s `->` operator, but no solution really achieves what imperative languages doI'm still unsure a syntax with a non-complex desugaring exists.
 
