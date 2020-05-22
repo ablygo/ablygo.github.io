@@ -287,21 +287,7 @@ Essentially, between `''` each line needs to start with a `|`, and the string co
 
 #### Interpolated lines
 
-An example from https://rahul-thakoor.github.io/rust-raw-string-literals/, taken from the toml crate
 
-```
-''
-| global_string = "test"
-| global_integer = 5
-| [server]
-| ip = "127.0.0.1"
-| port = 80
-| [[peers]]
-| ip = "127.0.0.1"
-| port = 8080
-| [[peers]]
-| ip = "127.0.0.1"
-''
 ```
 
 Unlike other raw string syntaxes, this allows leading non-semantic whitespace (before the pipe) and leading semantic whitespace (starting one character after the pipe). It also allows the end-of-string token in the string with no limitations: a line containing text must start with `|` as the first non-whitespace character, while the line ending the string must start with `''` as the first non-whitespace character. Likewise, a line starting with `--` is a comment in the host language, and
