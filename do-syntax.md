@@ -36,6 +36,22 @@ This does make the syntax for records and blocks very similar though. 1-records 
 { 'x : Int ; 'x = 2 ; pure x } -- block
 ```
 
+I don't feel terribly strongly about this. I generally find explicit type signatures more readable than having everything being inferred, and interleaving type signatures and variable names (as in `x : Int <- y`) to be less readable, so I think it's an improvement, though it differs from what Haskell programmers expect, and the upside is very small.
+
+One odd advantage that wasn't really intended, but you get non-recursive let, if you write something like:
+
+```haskell
+do
+    'x : Int
+    'x = 2
+    x + 1
+    
+-- or
+{ x' : Int ; 'x = 2 ; x + 1 }
+```
+
+This can be desugared with no Functor/Applicative/Monad instance. Note, I think `=` would still be recursive within their own binding, though that this could be ambiguous might be a reason to abandon the entire idea. It's not something I view as a priority.
+
 # Declarations
 
 ### Commas separating arguments in functions
@@ -76,3 +92,7 @@ I remember being confused that the first `=` gets dropped when using guards when
 One other note, I could drop the `|` entirely in guards, by using `where` in its place. This looks better in composite pattern guards, as there will never be multiple arms, but in normal pattern guards looks more wordy. I could make it not required in composite pattern guards, though I don't like the inconsistency.
 
 One comment on making the pattern sublanguage richer, I don't really feel super motivated to improve it. On some level I like the idea, but it feels like something I would almost never use, at the cost of extra syntax and complexity. Every proposal I've seen for changes in Haskell I think "that would be cool, but also I don't really want it". I feel like the consistency in the syntax I'm proposing for Syrup *just* manages to achieve an acceptable power:weight ratio, as the consistency makes it's meaning easy enough to understand once you understand guards. But in the long run I feel like proposing a richer pattern language needs quite a bit stronger theoretical basis.
+
+### @-patterns
+
+I plan on having @-patterns simply behave as an and-pattern, in comparison to `|` as an or-pattern. The precedence would be `@` > `,` > `|`. So `Just 'a @ Nothing` would be syntactically valid, if not super useful.
