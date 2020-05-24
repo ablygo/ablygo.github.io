@@ -26,7 +26,9 @@ do
     'x <- pure (pure 2)
 ```
 
-to provide type signatures in do-blocks, similar to as in let blocks. I also considered allowing `=` without `let` in do-blocks, in which case the type signatures could apply there as well. `let` would only be required for recursive bindings.
+to provide type signatures in do-blocks, similar to as in let blocks. Strictly speaking, I might not need to disallow `:` as type annotations, since we could have `x : IO Int` as a type annotation of the expression `x`, vs. `'x : IO Int` as a type annotation on the following declaration (disambiguated by the tick). However, if we have implicit forall in type signatures like `'id : 'a -> 'a` then maybe that could cause issues, since `'id : 'a -> { 'b : IO Int }` possibly becomes ambiguous whether it is an implicit `b` (`'id : forall 'a ('b : IO Int). a -> b`) or intended to be a following type signature. Removing implicit forall removes the issue. Though lifting both the `'b` and its type into the forall seems magic, so I think it works. If we did want to implicitly lift it I think the correct interpretation would be `'id : forall 'a 'b. a -> { b : IO Int }`, which is nonsensical, so I'm leaning into it not creating ambiguity.
+
+I also considered allowing `=` without `let` in do-blocks, in which case the type signatures could apply there as well. `let` would only be required for recursive bindings.
 
 This does make the syntax for records and blocks very similar though. 1-records and blocks with one element can be distinguished due to requiring 1-records to have a comma (similar to 1-tuples); similarly blocks with type signatures or assignments would require at least 3 elements (the signature, the binding, and another line since the last line can't end with a binding (at which case they can also be disambiguated by using semicolons rather than commas). However, they still do look very similar. Consider
 
