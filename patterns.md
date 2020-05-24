@@ -74,6 +74,57 @@ I did also consider somethig like `?f 'x y`, which would denote that `f` is a pa
 
 If I go this route I could still also use (almost) the same syntax for optics, with something like `‹_These›('a,'b)`. Thus, pattern families would use juxtaposition as seperators, while optics would use prefix function application syntax, which reflects that optics need to have their arguments tupled up. While I like that this is possible (and was considering this syntax initially), I feel like just having the pattern family syntax is preferable to making the pattern language even more complex. We can afterall make a pattern family for using optics, and then seeing it in use also emphasizes that optics aren't necessarily affine.
 
+### Pattern declarations
+
+Some notes on declarations for pattern families, I find the syntax to be kind of confusing, though I don't know this idea is an improvement. We could have something like:
+
+‹Equals› : Eq a => a -> a
+‹Equals a› = ((==) a => True)
+  where
+    ‹Equals› : a -> a
+    ‹Equals a› = a
+    
+The type declaration would thus show the constraints on type variables, and the number of variables within the brackets in the body would show which ones are values and which ones are patterns. Or maybe something like:
+
+```
+‹'Equals : Eq 'a => 'a› -> 'a
+‹'Equals 'a› = (== a) => True
+  where
+    ‹'Equals : 'a› -> 'a
+    ‹'Equals 'a› = a
+    
+‹'At : At 'm => Index 'm› -> IxValue 'm
+‹'At 'k› 'v <- preview (at k) => Just v
+```
+I need to distinguish between constraints that are brought into scope, and constraints must already be in scope. I could have
+
+```
+‹'Pattern : BroughtIntoScope 'a› => AlreadyInScope 'b => ...
+```
+
+This reads better than Haskell's syntax, but it kind of muddies the fact that the arguments to the pattern family aren't really related to the constraints brought into scope.
+
+# Prefix function application constructors
+
+I was at one point planning to use `Foo(x,y)` as the syntax for data constructors, which had a few nice advantages. One, it removed the need for ticks to distinguish fresh variables vs. constructors (nullary constructors would be written `True()`, while `True` would be a new variable.
+
+I had intended to have optics baked into the language, and it also worked nicely with those. Optics require all their arguments to be tupled up, and I felt the need to use parentheses got that intuition across. Just as `foo` and `foo()` are interpretted differently, with the latter having more of a *finality* than the former, the same intuition would apply: we can't partially apply an optic and get another optic, so we need to distinguish when all of its arguments have been applied.
+
+Overall, I feel like prefix function application feels more intuitive when there's a sense of finality, while juxtaposition makes more sense when there's not (a function could always return another function, so there's no point syntactically when we're *done* applying it). The same is not true for data constructors. So I like that the syntax makes that distinction apparent.
+
+Note, type constructors get partially applied a lot, as in `Free (State s) a`, so I feel like they should continue to use juxtaposition. Prefix application and partial application look visually kind of weird when used together, would it be `Free(State(s),a)`, or `Free(State(s))(a)`?
+
+I also liked this about this syntax, as it would make the intution that type constructors and functions can't be pattern matched against (due to using juxtaposition), while data constructors can (and use prefix notation) syntactically apparent. 
+
+However, I decided against it. One, even if we don't need ticks to denote fresh variables in patterns, we still need them in types, otherwise something like `instance Foo Bar` becomes ambiguous (is Bar a type variable or a type constructor?). Likewise, if I have ticks I can still have implicit forall, like `'id : 'a -> 'a`. So even if the prefix notation removes the need for ticks in some cases I still need them overall. Also, even if I don't hate `True()` I certainly don't like it.
+
+```
+
+On the other hand, we could write the type signature as `‹'At› : At 'm => ...`, distinguishing between which variables are values and which are patterns only in the body. 
+
+In this syntax, the brackets would enclose all the expression variables in the type, and remaining ones would thus need to be pattern variables (with the last one being the actual type of the pattern. I think I like this syntax better, though I still don't love it. I don't know that there's a syntax I love for this, nor does this example really need bidirectionality, even if we could interpret it bidirectionally.
+    
+
 # Restatement of current plans
 
 ```haskell
@@ -90,3 +141,5 @@ If I go this route I could still also use (almost) the same syntax for optics, w
 -- pattern families (and synonyms) are unified, and use some form of grouping to be used.
 'foo ‹bar›, ‹qux x› 'y = y
 ```
+
+I wonder if view patterns can be replaced by pattern families entirely, though complex pattern families are syntactically defined in terms of view patterns, so I'm not sure how that would work. 
