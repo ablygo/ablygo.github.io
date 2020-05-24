@@ -98,3 +98,6 @@ One comment on making the pattern sublanguage richer, I don't really feel super 
 ### @-patterns
 
 I plan on having @-patterns simply behave as an and-pattern, in comparison to `|` as an or-pattern. The precedence would be `@` > `,` > `|`. So `Just 'a @ Nothing` would be syntactically valid, if not super useful.
+
+https://gitlab.haskell.org/ghc/ghc/-/wikis/view-patterns-alternative
+https://gitlab.haskell.org/ghc/ghc/-/wikis/pattern-families
