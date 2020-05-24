@@ -14,7 +14,7 @@ A plus to this is it generalizes lambda case to multiple arguments quite nicely.
 
 A downside of this is that the left hand side of definitions doesn't mirror when functions are used. For instance `f x y = ...` reads rather nice as a definition: whenever you see `f a b` in an expression you bind the variables to those in the left hand side of function definition, and then replace it by the right hand side. I'm not sure losing that consistency is *that* bad a loss though. It wasn't until I was pretty familiar with Haskell that I actually noticed that definitions could be read that way. Thus, the inconsistency might only be apparent to people after it's been pointed out.
 
-I'm really not sure.
+Overall, while it's inconsistent, I don't think user's would find it confusing to use commas to separate arguments in definitions, but not in use. I would need to ask some other programmers to be sure.
 
 ## Or-patterns
 
@@ -38,18 +38,11 @@ I do like the consistency of using `<-` for pattern guards, do, and view pattern
 
 ## Ticks
 
-I want to avoid the need for capitilization to distinguish fresh variables vs. data constructors, and plan to use ticks to disambiguate. So `'id 'x = x` is the identity function, while `'id x = x` pattern matches its argument against the data constructor `x`.
+I want to avoid the need for capitilization to distinguish fresh variables vs. data constructors, and plan to use ticks to disambiguate. So `'id 'x = x` is the identity function, while `'id x = x` pattern matches its argument against the data constructor `x`, and also returns the data constructor `x`.
 
-The tick on the `id` is for consistency, anywhere a name is introduced it is ticked. I don't love needing to do this, but there are a few different places where using ticks this way is helpful, and thus I feel the consistency is worth it. It actually helps for knowing whether we are pattern matching against the `id` constructor or defining a function as well, as pattern matching is allowed in declarations.
+Though these are somewhat confusable, I'm *slightly* okay with this. The idea of requiring this is not to discontinue using capitals for constructors and lower case for other expressions/freshly bound variables, but to allow user's to break from that requirement *if* they feel it makes their code more readable. Thus `x` as a constructor name would be a bad idea for the same reason as `putStrLn` would be a bad name for a function that reformats your harddrive.
 
-This also could let me use unticked variables in patterns as Eq constraints if the variable isn't a data constructor, though this also has the issue of hiding operational characteristics behind syntax. Semantically though, using unticked variables for both eq constraints and data constructors is really compelling to me. I might allow it, but with an annotation at the use site, so people would have to write:
-
-```haskell
-#[EqPattern]
-'f x = ...
-```
-
-For it to be accepted, even if it would parse without the annotation.
+With explicit shadowing warning and a culture of qualified imports, I think this is acceptable; having an unqualified constructor named `x` in scope should be unlikely. This still makes me slightly nervious, though I really don't like needing to use semantically significant capitilazation. I'm not super sure about this.
 
 ## Eq patterns
 
@@ -84,6 +77,8 @@ If I go this route I could still also use (almost) the same syntax for optics, w
 # Restatement of current plans
 
 ```haskell
+-- ticks are used to bring new names into scope, unticked variables in patterns are constructors
+
 -- Function arguments are separated by commas, or-patterns are separated by pipes, commas bind more tightly
 'notEq : Bool -> Bool -> Bool
 'notEq True, False | False, True = True
