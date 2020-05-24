@@ -4,7 +4,17 @@ I've seen a lot of proposals for improvements for patterns in Haskell, and with 
 
 It may be the case that optics are the pattern calculus I desire, though they do have a few issues. Operationally they are going to be potentially less efficient, due to having to tuple up their arguments, only to immediately pattern match on them. They also don't work with existentially types, and can throw away information (patterns allow affine traversals, while optics allow general traversals). This last issue is a big one for me.
 
-Even if the issue with existential types could be solved, and the operational issues could be optimized away when possible, I think there are benefits to having syntax that reflects that true patterns are O(1) and at worse affine, whereas optics may both be slower, and throw away information. 
+Even if the issue with existential types could be solved, and the operational issues could be optimized away when possible, I think there are benefits to having syntax that reflects that true patterns are O(1) and at worse affine, whereas optics may both be slower, and throw away information.
+
+## Arguments separated by commas
+
+I plan to use arguments separated by commas on the left hand of a definition, like `'foo 'x, 'y 'z = ...`.
+
+A plus to this is it generalizes lambda case to multiple arguments quite nicely. It also allows eliding some parentheses.
+
+A downside of this is that the left hand side of definitions doesn't mirror when functions are used. For instance `f x y = ...` reads rather nice as a definition: whenever you see `f a b` in an expression you bind the variables to those in the left hand side of function definition, and then replace it by the right hand side. I'm not sure losing that consistency is *that* bad a loss though. It wasn't until I was pretty familiar with Haskell that I actually noticed that definitions could be read that way. Thus, the inconsistency might only be apparent to people after it's been pointed out.
+
+I'm really not sure.
 
 ## Or-patterns
 
@@ -41,11 +51,29 @@ This also could let me use unticked variables in patterns as Eq constraints if t
 
 For it to be accepted, even if it would parse without the annotation.
 
+## Eq patterns
+
+Unticked variables in patterns could desugar to an equality constraint if the name doesn't refer to a data constructor. This feels very natural to me: matching against a data structure is a form of equality check; it just happens to be one that we may override when defining equality on a data type.
+
+One huge caveat, this would have to be opted into explicitly. So you would write something like:
+
+```haskell
+#[EqPattern(x)]
+'equals 'x x = True
+'equals _ _ = False
+```
+
+Note in the example, `'x` brings `x` into scope for use in other patterns in the definition.
+
+The reason for this requirement is both the operational concern, and also because it might be easy to cause accidentally if intending to shadow a variable (that might be caught by the type checker, but then again it might not).
+
+I might still disallow this. Using the pattern family syntax below, I could write `‹Equals x›`, which is more explicit, but still more lightweight than `(== x) => True`. This is my overall preference.
+
 ## Pattern families
 
 I like the Haskell pattern family proposal a lot, except that there's no syntactic way to tell when it's being used. This has some of the same issue I have with pattern syntax using optics. View patterns makes the fact that arbitrary computation is being done syntactically significant, while pattern families hide it (while possibly making the semantic meaning of the code more clear).
 
-Likewise, there's no way to even tell if a variable is being bound. Even if we know that things are O(1), what does `foo (Foo x) = x` mean? `x` could be an expression already in scope and `Foo` a pattern family, or we could be pattern matching against a variable. I could have `foo ((Foo x)) = x`. Since we can't have expressions which return constructors, parentheses around the first argument are technically never going to occur in patterns, though it breaks the fact that `(f x) y = `f x y`. I don't like this solution.
+Likewise, there's no way to even tell if a variable is being bound. Even if we know that things are O(1), what does `foo (Foo x) = x` mean? `x` could be an expression already in scope and `Foo` a pattern family, or we could be pattern matching against a variable. I could have `foo ((Foo x)) = x`. Since we can't have expressions which return constructors, parentheses around the first argument are technically never going to occur in patterns, though it breaks the fact that `(f x) y = f x y`. I don't like this solution.
 
 Another idea is to just have an outright syntactic marker. I was considering something like `‹pattern family› a b` (subject to bikeshedding, I don't want to need unicode). I do like this idea, as it separates the expression from the bound variables. It could also be used for pattern synonyms in general, so `'foo Foo = ` would always be an O(1) pattern match against a data constructor, while `'foo ‹Foo›` would be a pattern match against a nullary pattern synonym. This is my favorite solution, as it entirely distinguishes between pattern synonyms/families (and unifies them) and raw pattern matches, but is also lightweight.
 
@@ -64,6 +92,6 @@ If I go this route I could still also use (almost) the same syntax for optics, w
 -- view patterns probably use =>
 'foo (bar => 'x) = x
 
--- pattern families (and synonyms) are unified, and use some form of grouping to be decided
+-- pattern families (and synonyms) are unified, and use some form of grouping to be used.
 'foo ‹bar›, ‹qux x› 'y = y
 ```
