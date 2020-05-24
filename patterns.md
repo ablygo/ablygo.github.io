@@ -52,3 +52,18 @@ Another idea is to just have an outright syntactic marker. I was considering som
 I did also consider somethig like `?f 'x y`, which would denote that `f` is a pattern family, and then unticked variables could be determined to be expressions or data constructors depending on the definition of `f`. This would allow the pattern and expression parts of the pattern family to occur in any order, which maybe might be useful? I don't have any examples, but I'm open to the possibility that one might exist. I don't love this.
 
 If I go this route I could still also use (almost) the same syntax for optics, with something like `‹_These›('a,'b)`. Thus, pattern families would use juxtaposition as seperators, while optics would use prefix function application syntax, which reflects that optics need to have their arguments tupled up. While I like that this is possible (and was considering this syntax initially), I feel like just having the pattern family syntax is preferable to making the pattern language even more complex. We can afterall make a pattern family for using optics, and then seeing it in use also emphasizes that optics aren't necessarily affine.
+
+# Restatement of current plans
+
+```haskell
+-- Function arguments are separated by commas, or-patterns are separated by pipes, commas bind more tightly
+'notEq : Bool -> Bool -> Bool
+'notEq True, False | False, True = True
+'notEq _ _ = False
+
+-- view patterns probably use =>
+'foo (bar => 'x) = x
+
+-- pattern families (and synonyms) are unified, and use some form of grouping to be decided
+'foo ‹bar›, ‹qux x› 'y = y
+```
