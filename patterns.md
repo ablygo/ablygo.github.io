@@ -74,6 +74,20 @@ I did also consider somethig like `?f 'x y`, which would denote that `f` is a pa
 
 If I go this route I could still also use (almost) the same syntax for optics, with something like `‹_These›('a,'b)`. Thus, pattern families would use juxtaposition as seperators, while optics would use prefix function application syntax, which reflects that optics need to have their arguments tupled up. While I like that this is possible (and was considering this syntax initially), I feel like just having the pattern family syntax is preferable to making the pattern language even more complex. We can afterall make a pattern family for using optics, and then seeing it in use also emphasizes that optics aren't necessarily affine.
 
+One thought, in expressions should you need to write `‹pattern family› a b`, with the same number of parameters inside the brackets and outside? The distinction only matters when it separates the expression and patterns, but in an expression context it doesn't matter. Putting patterns in a separate namespace and just writing `‹pattern_name›` in expressions (moving all expressions outside the bracket) would be more convenient for partial application, so you don't need to write `\x, y => ‹patt x› y`. On the other hand, it introduces inconsistency. What do?
+
+If we did put it in a different namespace, we could write `‹patt_name› a b` even for pattern families which take arguments, and rely on the compiler to figure out which arguments are patterns and which are expressions (in which case it is not clear syntactically which are expressions and which are patterns, but is still clear that a pattern family is being used). I'm not sure which is the better design.
+
+I'm leaning towards being fully explicit in pattern contexts, requiring the brackets to enclose the expression arguments, but being less explicit in expression contexts, where there is only need to know that a pattern family is being used, but not which arguments are part of the family in a pattern context. If the user wrote `‹f a› b` in an expression it would result in a compiler error and message explaining that the correct answer is `‹f› a b` in an expression.
+
+Are functions which take patterns and return patterns a thing? We could partially apply a pattern family to return a new pattern family, up until all the expression arguments are given. It might be better to try to give them a first class type and just use the brackets for syntax, but have them all exist in the same namespace still.
+
+```haskell
+‹'View› : ('a -> 'b) -> Pattern 'r 'b -> Pattern 'r 'a
+```
+
+I also kind of wonder about patterns with side effects, which could be useful with STM, or if using pattern matching to pop elements from a splay tree. Though at that point it may just be that patterns really just are an instance of MonadPlus, where `mzero` makes any side-effects unobservable (that is, a failed pattern match shouldn't have observable side-effects). If that was the case it might not be worth it to enrich the pattern language, but simply write monadic code. Patterns that behave like regular expressions (which can match multiple results) also seem interesting, but again, MonadPlus.
+
 ### Pattern declarations
 
 Some notes on declarations for pattern families, I find the syntax to be kind of confusing, though I don't know this idea is an improvement. We could have something like:
@@ -117,12 +131,6 @@ Note, type constructors get partially applied a lot, as in `Free (State s) a`, s
 I also liked this about this syntax, as it would make the intution that type constructors and functions can't be pattern matched against (due to using juxtaposition), while data constructors can (and use prefix notation) syntactically apparent. 
 
 However, I decided against it. One, even if we don't need ticks to denote fresh variables in patterns, we still need them in types, otherwise something like `instance Foo Bar` becomes ambiguous (is Bar a type variable or a type constructor?). Likewise, if I have ticks I can still have implicit forall, like `'id : 'a -> 'a`. So even if the prefix notation removes the need for ticks in some cases I still need them overall. Also, even if I don't hate `True()` I certainly don't like it.
-
-```
-
-On the other hand, we could write the type signature as `‹'At› : At 'm => ...`, distinguishing between which variables are values and which are patterns only in the body. 
-
-In this syntax, the brackets would enclose all the expression variables in the type, and remaining ones would thus need to be pattern variables (with the last one being the actual type of the pattern. I think I like this syntax better, though I still don't love it. I don't know that there's a syntax I love for this, nor does this example really need bidirectionality, even if we could interpret it bidirectionally.
     
 
 # Restatement of current plans
