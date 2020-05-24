@@ -38,3 +38,17 @@ example (expr => 'x if | 'y <- x) = ...
 example (('x if | 'y <- x) <- foo) = ...
 ```
 With using `<-` we need an extra parentheses, though it simplifies parsing and makes the syntax more consistent, as we have `{patt} <- {expr}` consistent wherever it occurs.
+
+One concern about using `if` as the guard herald comparing:
+
+```haskell
+foo Just a, b = if
+    | a <= b    => a
+foo a, b = b
+
+foo Just a, b if
+    | a <= b = a
+foo a, b = b
+```
+
+These have very different meaning, but resemble each other quite closely: the first is a multiway if (due to the first `=` and the `=>` in the guard), and the second is a guard on the function itself. Thus, it requires making two errors to mistakenly write when the other is intended, which might be acceptable, but it makes me nervous. Using `where` as the herald would remove the ambiguity.
