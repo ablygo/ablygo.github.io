@@ -31,4 +31,10 @@ With Haskell's default syntax, using `|` for both or-patterns and guards causes 
 
 I also want to parse view patterns with `<-`, and allow `if |` in patterns as well, to embed pattern guards inside nested patterns. I don't *really* want this, but changing the grammar like this makes all these features fit together in a nice way.
 
-One downside, a view pattern and pattern guard inside a pattern does flow better with `=>` as the pattern guard operator, compare `{expr} => {patt} if | {pattguard}` compared to `({patt} if | {pattguard}) <- {expr}`.
+One downside, compare the two different ways of doing view patterns:
+
+```haskell
+example (expr => 'x if | 'y <- x) = ...
+example (('x if | 'y <- x) <- foo) = ...
+```
+With using `<-` we need an extra parentheses, though it simplifies parsing and makes the syntax more consistent, as we have `{patt} <- {expr}` consistent wherever it occurs.
