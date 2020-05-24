@@ -38,6 +38,12 @@ This does make the syntax for records and blocks very similar though. 1-records 
 
 # Declarations
 
+### Commas separating arguments in functions
+
+I plan to have commas separate arguments in lambdas like in Idris, but also in function declarations in general. I feel like this reads better when you also have `|` as or-patterns, as you can view `,` as being like a product, `|` as being like a sum, and then it's easy to understand what they mean.
+
+This also allows eliding some parentheses, and makes generalizing polyvariadic lambda case very straightforward. The main disadvantage is that function declaration and use don't mirror each other. Overall I feel like the pros outweight the cons.
+
 ### Guards and pattern guards
 
 I plan to require `where` to precede the `|` to use guards. This has two benefits:
