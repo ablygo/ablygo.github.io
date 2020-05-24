@@ -12,9 +12,19 @@ Use `|` as a way to separate patterns, which match if either side match. Both si
 
 `|` is the obvious choice of syntax, and I feel most Haskellers would agree, but due to using `|` for guards it presents ambiguity. In Haskell the proposal uses `;`, though I still feel the meaning is more clear with `|`. My solution is to have some herald before a guard, like `foo x if | x == 0 = True`. Thus, the `if` separates the or-patterns from the guards. The choice of `if` presents some new issues (`where` avoids them, if overloading the meaning of `where` in a way I don't like). Overall I like this idea.
 
+With multiple arguments you would write:
+
+```haskell
+foo a, b | c, d | e, g = ...
+```
+
+This would be a two argument function with three or-patterns, so `,` binds more tightly than `|`. Thinking of `,` as a product and `|` as a sum also gives that intuition. Thus if you wanted an or-pattern to refer to a single positional argument parentheses would be required.
+
 ## View patterns
 
 Haskell uses `->`, I would be using `=>` if I use the same syntax. Using `<-` would make the language more consistent, as it's also used in pattern guards and do-blocks. If pattern guards are allowed in nested patterns, as in [https://gitlab.haskell.org/ghc/ghc/-/wikis/view-patterns-alternative], then I feel `=>` would be better, as we would need to write `(patt | pattguard) <- expr`, compared to `expr => patt | pattguard`. I like the consistency that that proposal has, but consistency is really the only thing I like about it.
+
+I do like the consistency of using `<-` for pattern guards, do, and view patterns, but also feel `=>` reads better even without the view pattern alternative. I'm not sure if that's just a matter of habit, or due to reading left to right (call this function on the argument first, *then* match it against this pattern. I feel like I would need to ask someone not too familiar with Haskell what they thought to evaluate them.
 
 ## Ticks
 
