@@ -78,3 +78,16 @@ case () of
 ```
 
 That could also be fixed with layout, by making guards have to be aligned, and the expressions they are guarding to be further indented. That seems like an easier thing to implement though. Hmm... The GHC proposal does avoid the issue. For the time being I'm not making a choice.
+
+# The meat of the thing
+
+This doesn't have anything specific to do with do notation, or even monads. We could have
+
+```
+case Just 'x = foo of
+    Nothing => badPath
+-- the goodPath doesnt have any indentation sensitivity, except for being less indented than the bad
+goodPath
+```
+
+And recover the monadic version with `!` and a custom rule for layout to allow for that indentation. Analysis of the syntax should be done with that in mind.
