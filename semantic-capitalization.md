@@ -22,7 +22,7 @@ To indicate that `x` is newly introduced, just as we use ticks in patterns to sh
 'id : 'a -> case foo of {..} -> 'x
 ```
 
-in which case it's not clear whether the `x` is a newly introduced type variable or a record pun.
+in which case it's not clear whether the `x` is a newly introduced type variable or a record pun. I really like this idea, possibly enough to use it but make explicit forall mandatory. Another option is to depend on context, if the expression is the right of a `:` then it an implicit new variable, but otherwise it is a pun. I don't hate this, but I can't say I love it either.
 
 2. Use ticked variables for cheaper lambdas.
 
