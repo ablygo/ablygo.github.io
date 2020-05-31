@@ -27,3 +27,28 @@ in which case it's not clear whether the `x` is a newly introduced type variable
 2. Use ticked variables for cheaper lambdas.
 
 I already use `{ ... }` to denote the scope of hoists in expressions, so punning on it indicating scope, I could write code like `{ foo '2 '1 }` as sugar for `\x1 x2 => foo x2 x1`. I don't love this idea, but it's an idea.
+
+3. Use unticked variables in explicit foralls in class signatures to indicate argument order:
+
+There's an issue with typeclass declarations where if you write something like
+
+```
+class Functor f where
+  map : (a -> b) -> (f a -> f b)
+```
+
+The signature then becomes `map : forall f a b. (Functor f) => (a -> b) -> f a -> f b`. However, if we prefer the class variable `f` to occur in a different position and write
+
+```
+class Functor f where
+  map : forall f a b. (a -> b) -> f a -> f b
+```
+
+the `f` in the signature shadows the `f` already in scope, not having the meaning we want. If we require new variables to be ticked we could write
+
+```
+class 'Functor 'f where
+    'map : forall 'a 'b f. (a -> b) -> f a -> f b
+```
+
+To indicate that we intend the type variable `f` to occur last, and aren't in fact shadowing it (I'm not sure the ticks are in any way necessary on Functor or map, but they are provided for consistency.
