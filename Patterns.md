@@ -66,6 +66,53 @@ I could make a `then` only be allowed when it's followed by another guard, but I
 
 A line like `cond else |` would evaluate the right guard if `cond` fails, or evaluate the following comma if it succeeds, while a line like `cond then |` would do the opposite. Pattern guards could also be supported, though I'm not sure if they should use `let`, so they would look more like Rust's if-let, which I think is an easier syntax to understand that pattern guards are.
 
+With-patterns could be nested in guards as well, like
+
+```
+'f 'x if
+    | g x then =
+    | otherwise with h x of
+        Just 'y = 
+        Nothing y =
+```
+
+If a `with` is followed by a guard preceded by a comma and the `with` fails to match we would backtrack and try the comma. So in the following two examples
+
+```
+'f 'x if
+    | h x
+    , with g x of
+        Just 'y = ...
+    , otherwise = ...
+```
+
+The otherwise branch will only happen if `h x` succeeds, but the `with` fails. If we change it to:
+
+```
+'f 'x if
+    | h x
+    , with g x of
+        Just 'y = ...
+    | otherwise = ...
+```
+
+The otherwise branch will be followed if either `h x` or the `with` block fail. Thus, `with` behaves like `then` in a guard.
+
+One issue I'm not sure of with `with` in guards is what to do if the next guard is preceded by a comma. If the `with` fails to match we could backtrack and try the comma
+
+### Pattern guards
+
+Pattern guards would also support `then` and `else`, with them defining which direction we take if the guard succeeds or fail, similar to regular guards. I'm not sure if I want to have a `with` version of pattern guards, which would go down on success or right to try other patterns on failure. It could look something like this:
+
+```
+'f 'x if
+    | Just 'y <- g x with
+        Nothing = ..
+    , h y then = ...
+```
+
+I might want similar syntax for bindings in do-notation and let-notation, for both `else` and `with`. In this form `else` is really just a `with` where the pattern we're matching against is `_`.
+
 ## Ticks
 
 I'm planning on using prefix ticks to be used when binding new variables in patterns. This technically leaves unticked variables to infer equality constraints if the variable in scope isn't a constructor, which feels almost valid (as comparing against a constructor is already a form of equality constraint in the first place). There are two reasons why I don't want to do that:
