@@ -66,17 +66,39 @@ I could make a `then` only be allowed when it's followed by another guard, but I
 
 A line like `cond else |` would evaluate the right guard if `cond` fails, or evaluate the following comma if it succeeds, while a line like `cond then |` would do the opposite. Pattern guards could also be supported, though I'm not sure if they should use `let`, so they would look more like Rust's if-let, which I think is an easier syntax to understand that pattern guards are.
 
+#### Guarded with-patterns
+
 With-patterns could be nested in guards as well, like
 
 ```
 'f 'x if
     | g x then =
-    | otherwise with h x of
+    | with h x of
         Just 'y = 
-        Nothing y =
+        Nothing =
+    , y x then =
 ```
 
-If a `with` is followed by a guard preceded by a comma and the `with` fails to match we would backtrack and try the comma. So in the following two examples
+If all of the pattern matches in the `with` fail it falls to the next comma, `y x` in the example. If that path also fails it falls to the next pipe. I might also want `then with` and `else with`, as otherwise the case statement would need to be further indented than the pipe, so the previous example would look like:
+
+```
+'f 'x if
+    | g x then =
+    | otherwise then
+        | with h x of
+            Just 'y =
+            Nothing =
+        , y x then =
+```
+
+Maybe I should have `then with` and `else with`, along with `| with` and `| with`. I'd like to not have so many ways to do things, as I already have a lot. I don't like `with` at the bottom level though, like
+
+```
+'f 'x if
+    | with ...
+```
+
+As that forces you to have `then with` syntactics, and I'd like to have both. Though you could still achieve that just with `then | with` and `else | with`, so maybe it's okay? It's hard to think about.
 
 ```
 'f 'x if
@@ -131,4 +153,4 @@ let 'NaN = NaN
 in f NaN
 ```
 
-Because the `NaN` constructor is shadowed, this would result in False, as shadowing of the variable will change the pattern match from a structural pattern match to an equality constraint. I feel like the appropriate solution is to force user's to be explicit with a pattern family, guard, with pattern, or view pattern, if they want an equality constraint.
+Because the `NaN` constructor is shadowed, this would result in False, as shadowing of the variable will change the pattern match from a structural pattern match to an equality constraint. I feel like shadowing a variable should not be able to change the asymptotics of a pattern match, and the appropriate solution is to force user's to be explicit with a pattern family, guard, with pattern, or view pattern, if they want an equality constraint.
