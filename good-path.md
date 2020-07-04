@@ -91,3 +91,30 @@ goodPath
 ```
 
 And recover the monadic version with `!` and a custom rule for layout to allow for that indentation. Analysis of the syntax should be done with that in mind.
+
+# Let-bindings
+
+I could also have the following in let-bindings:
+
+```
+let Just 'x = ...
+        | Nothing = badPath : r
+in goodPath : r
+```
+
+With the semantics that if the pattern match of `Just 'x` against `...` fails we return `badPath`, otherwise we return `goodPath`. This isn't quite the same as the semantics for partial let bindings in Haskell, as the desugaring looks more like:
+
+```
+case ... of
+     Just 'x => goodPath
+     Nothing => badPath
+
+-- vs
+
+let 'x = case ... of
+        Just 'x => x
+        Nothing => undefined
+in goodPath
+```
+
+That is, the case statement is done lazily, and so the badPath doesn't need to have the same type as the goodPath; rather, it has to bind the same variables, but simply is undefined and throws an error, making the issue moot. The alternate idea is kind of neat, but I'm not sure if it's that useful.
